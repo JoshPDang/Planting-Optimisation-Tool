@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.6",
   "module": "./dist/vite-vanilla-ts-lib-starter.js",
-  "type": "module",
   "exports": {
     ".": {
       "import": "./dist/vite-vanilla-ts-lib-starter.js"
@@ -15,8 +14,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "vite --host",
-    "build": "rimraf build/**/* && tsc && vite build && dts-bundle-generator --config ./dts-bundle-generator.config.ts && copyfiles ./package.json build",
     "test": "vitest",
+    "build": "rimraf build/**/* && tsc && vite build --config vite.config.ts && dts-bundle-generator --config ./dts-bundle-generator.config.ts && copyfiles ./package.json build",
     "test:coverage": "vitest --coverage",
     "lint:scripts": "eslint . --ext .ts",
     "lint:styles": "stylelint ./**/*.{css,scss}",

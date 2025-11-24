@@ -1,4 +1,5 @@
 # Planting Optimisation Tool
+[![POT Python infrastructure](https://github.com/Chameleon-company/Planting-Optimisation-Tool/actions/workflows/python-app.yml/badge.svg)](https://github.com/Chameleon-company/Planting-Optimisation-Tool/actions/workflows/python-app.yml)
 
 A data-driven recommendation system designed to support sustainable reforestation and agroforestry planning in Timor-Leste. The tool identifies the most suitable tree species for a given farm by analysing environmental conditions, species requirements, and geospatial datasets.
 

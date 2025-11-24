@@ -42,7 +42,7 @@ jobs:
         working-directory: frontend
 
       - name: Check scripts formatting
-        run: prettier --check .
+        run: npm run format:scripts -- --check
         working-directory: frontend
 
       - name: Check styles formatting

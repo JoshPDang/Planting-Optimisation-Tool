@@ -1,5 +1,6 @@
 from config.settings import SERVICE_ACCOUNT, KEY_PATH
 
+
 def init_gee():
     """Initialize Google Earth Engine using central config."""
     import ee

@@ -21,6 +21,8 @@ gis/.venv/
 # Editor / OS artifacts
 gis/.vscode/
 gis/.DS_Store
+.DS_Store
+**/.DS_Store
 
 # Environment variables & secrets
 gis/.env

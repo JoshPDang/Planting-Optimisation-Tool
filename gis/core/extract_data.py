@@ -21,4 +21,3 @@ def get_elevation():
 def get_landcover():
     """Fetch landcover data (placeholder)."""
     pass
-

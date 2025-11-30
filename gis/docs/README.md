@@ -1,5 +1,5 @@
 # Overview
-This module provides functions for extracting geospatial attributes from coordinates.
+This module provides a lightweight interface for extracting geospatial attributes from coordinates.
 It is designed to support the Planting Optimisation Tool by converting longitude/latitude inputs into meaningful environmental data such as elevation, rainfall, temperature, soil pH, and landcover.
 ```
 gis/
@@ -59,3 +59,4 @@ Raises an error for unsupported formats.
 
 A one-time script that loads farm_boundaries.gpkg, cleans the geometries, and prepares a farm table for later GIS and database use.
 It converts 3D polygons to 2D, computes centroids, calculates area in hectares, generates WKT geometry, and outputs a clean CSV (gis/docs/farm_table.csv) containing all farm attributes and polygon data.
+

@@ -102,19 +102,24 @@ def test_parse_polygon():
 
 
 # parse_geometry auto-detection
+# ----------------------------------------------------------------------
+# NEW TEST — parse_geometry auto-detection
+# ----------------------------------------------------------------------
+
+
 def test_parse_geometry_dispatch():
     fake_ee = make_fake_ee()
 
     # ---- Point ----
     with patch.object(builtins, "__import__", return_value=fake_ee):
-        g_point = parse_geometry((-8.55, 125.57))
+        parse_geometry((-8.55, 125.57))  # no variable assigned
 
     fake_ee.Geometry.Point.assert_called_once_with([125.57, -8.55])
     fake_ee.Geometry.Point.reset_mock()
 
     # ---- MultiPoint ----
     with patch.object(builtins, "__import__", return_value=fake_ee):
-        g_multipoint = parse_geometry([(-8.55, 125.57), (-8.56, 125.58)])
+        parse_geometry([(-8.55, 125.57), (-8.56, 125.58)])  # no variable assigned
 
     fake_ee.Geometry.MultiPoint.assert_called_once_with(
         [[125.57, -8.55], [125.58, -8.56]]

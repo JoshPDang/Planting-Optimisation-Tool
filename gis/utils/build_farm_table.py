@@ -42,20 +42,22 @@ def build_farm_table():
     gdf["polygon_wkt"] = gdf["polygon"].apply(lambda g: g.wkt)
 
     # Build final DataFrame
-    df = pd.DataFrame({
-        "name": gdf["Name"],
-        "suco": gdf["Suco"],
-        "aldeia": gdf["Aldeia"],
-        "treeo_id": gdf.get("treeo_id", None),
-        "plant_year": gdf.get("plant_year", None),
-        "subdistrict": gdf.get("Subdistrict", None),
-        "layer": gdf.get("layer", None),
-        "centroid_lat": gdf["centroid_lat"],
-        "centroid_lon": gdf["centroid_lon"],
-        "area_ha": gdf["area_ha"],
-        "polygon": gdf["polygon"],
-        "polygon_wkt": gdf["polygon_wkt"],
-    })
+    df = pd.DataFrame(
+        {
+            "name": gdf["Name"],
+            "suco": gdf["Suco"],
+            "aldeia": gdf["Aldeia"],
+            "treeo_id": gdf.get("treeo_id", None),
+            "plant_year": gdf.get("plant_year", None),
+            "subdistrict": gdf.get("Subdistrict", None),
+            "layer": gdf.get("layer", None),
+            "centroid_lat": gdf["centroid_lat"],
+            "centroid_lon": gdf["centroid_lon"],
+            "area_ha": gdf["area_ha"],
+            "polygon": gdf["polygon"],
+            "polygon_wkt": gdf["polygon_wkt"],
+        }
+    )
 
     # Ensure docs folder exists
     os.makedirs(docs_dir, exist_ok=True)

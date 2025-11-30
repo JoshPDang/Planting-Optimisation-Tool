@@ -58,9 +58,7 @@ def parse_geometry(geom_raw):
         return parse_multipoint(geom_raw)
 
     # Polygon
-    if isinstance(geom_raw, list) and all(
-        isinstance(r, list) for r in geom_raw
-    ):
+    if isinstance(geom_raw, list) and all(isinstance(r, list) for r in geom_raw):
         return parse_polygon(geom_raw)
 
     raise ValueError(f"Invalid geometry format: {geom_raw}")

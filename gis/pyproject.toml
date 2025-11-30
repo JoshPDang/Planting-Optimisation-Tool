@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-
     #GEE
     "earthengine-api>=1.0.0",
     "geopandas>=1.1.1",
@@ -14,10 +13,15 @@ dependencies = [
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.14.5",
-    
     #Environmental loading
-    "python-dotenv>=1.0.1"
+    "python-dotenv>=1.0.1",
+    "setuptools>=80.9.0",
+    "wheel>=0.45.1",
+    "pip>=25.3"
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.uv.sources]
+geemap = { git = "https://github.com/giswqs/geemap.git" }

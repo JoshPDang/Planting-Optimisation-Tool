@@ -42,6 +42,7 @@ def parse_polygon(coords: list[list[tuple[float, float]]]):
 
     return ee.Geometry.Polygon(ee_rings)
 
+
 def parse_geometry(geom_raw):
     """
     Auto-detect the geometry type and return ee.Geometry.
@@ -61,4 +62,3 @@ def parse_geometry(geom_raw):
         return parse_polygon(geom_raw)
 
     raise ValueError(f"Invalid geometry format: {geom_raw}")
-

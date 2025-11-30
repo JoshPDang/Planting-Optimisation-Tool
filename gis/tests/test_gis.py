@@ -10,7 +10,6 @@ from core.geometry_parser import (
     parse_geometry,
 )
 
-from core.geometry_parser import parse_point, parse_multipoint, parse_polygon
 
 # Helper to create fake ee module for mocking
 def make_fake_ee():
@@ -102,8 +101,8 @@ def test_parse_polygon():
     )
     assert g == fake_ee.Geometry.Polygon.return_value
 
-# parse_geometry auto-detection
 
+# parse_geometry auto-detection
 
 
 def test_parse_geometry_dispatch():

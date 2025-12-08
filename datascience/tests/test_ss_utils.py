@@ -65,6 +65,18 @@ def species_params_df():
                 "score_method": None,
                 "weight": 0.8,
             },
+            {
+                "species_id": 3,
+                "feature": "ph",
+                "score_method": "num_range",
+                "weight": 0.0,
+            },
+            {
+                "species_id": 3,
+                "feature": "soil_texture",
+                "score_method": np.nan,
+                "weight": np.nan,
+            },
         ]
     )
 
@@ -173,6 +185,14 @@ def test_get_params_partial_fallback(species_params_df, basic_cfg):
     )
 
     assert result["weight"] == pytest.approx(0.8)  # Specific
+    assert result["score_method"] == "cat_exact"  # Default (fallback)
+
+    # Species 3 has a soil_texture weight np.nan, method is np.nan
+    result = get_feature_params(
+        params_dict, basic_cfg, species_id=3, feature="soil_texture"
+    )
+
+    assert result["weight"] == pytest.approx(0.5)  # Default (fallback)
     assert result["score_method"] == "cat_exact"  # Default (fallback)
 
 

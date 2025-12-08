@@ -15,17 +15,19 @@ For efficiency a two-stage "funnel" approach is utilised:
 
     * **Categorical features:** Evaluated using preference matching (e.g., `cat_exact`). Checks if the farm's attribute (e.g., soil texture) exists within the species' list of preferred types. A score of 1.0 is returned is an exact match is found and zero if no match is found.
 
+![The two-stage filter process](architecture_figure.png)
+
 ## Handling "Unknown" IDs
 A specific edge case is handled where the exclusion function function might return a Species ID that exists in the logic but is missing from the species reference data.
 
-  * **Behavior:** The scoring function does not crash.
+  * **Behaviour:** The scoring function does not crash.
   * **Result:** It calculates no score but appends a specific note to the `explanations` dictionary.
   * **Use Case:** This is essential for data integrity debugging, allowing the spotting of when the reference database(Species profiles vs. Exclusion logic) are out of sync.
 
 ## Weight normalisation logic
 The final score calculation handles missing data dynamically:
 
-$$\text{Total Score} = \frac{\sum (\text{weight} \times \text{feature\_score})}{\sum \text{active\_weights}}$$
+$`\text{Total Score} = \frac{\sum (\text{weight} \times \text{feature\_score})}{\sum \text{active\_weights}}`$
 
 If a feature is missing data (score is `None`) or has a weight of 0, it is excluded from both the numerator and the denominator. This ensures that a tree isn't penalized simply because a specific, non-critical data point is missing, provided the denominator remains greater than zero.
 

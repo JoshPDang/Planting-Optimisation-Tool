@@ -113,7 +113,7 @@ def score_farms_species_by_id_list(
 
     Scoring Methodology
     Scoring is performed using a weighted arithmetic mean of individual feature scores.
-    Feature behaviur is defined in `cfg['features']` and applied as follows:
+    Feature behaviour is defined in `cfg['features']` and applied as follows:
 
     * Numerical features: Evaluated using range logic (e.g., `num_range`). A score of
         1.0 is awarded if the farm's value falls between the species' min/max

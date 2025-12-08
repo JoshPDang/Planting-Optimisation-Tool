@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def build_species_params_dict(species_params_df, config):
     """
     This function builds an dictionary of species parameters for lookup
@@ -69,13 +72,14 @@ def get_feature_params(params_dict, config, species_id, feature):
 
     # Score method
     score_method = sp_feature_params.get("score_method")
-    if not score_method:
+    if score_method is None or pd.isna(score_method):
         score_method = default_scm
 
     # Weight
-    if sp_feature_params.get("weight") is not None:
-        weight = float(sp_feature_params.get("weight"))
-    else:
+    weight = sp_feature_params.get("weight")
+    if weight is None or pd.isna(weight):
         weight = default_weight
+    else:
+        weight = float(weight)
 
     return {"score_method": score_method, "weight": weight}

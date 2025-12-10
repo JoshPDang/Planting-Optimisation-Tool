@@ -11,3 +11,9 @@ __pycache__/
 
 # Ignore coverage file
 .coverage
+
+# Ruff stuff:
+.ruff_cache/
+
+# pytest stuff
+.pytest_cache/

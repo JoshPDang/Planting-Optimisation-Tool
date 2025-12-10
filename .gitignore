@@ -39,3 +39,5 @@ gis/test_main.py
 gis/tests/**/__pycache__/
 gis/tests/.pytest_cache/
 
+# Ruff stuff:
+.ruff_cache/

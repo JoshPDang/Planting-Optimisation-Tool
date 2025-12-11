@@ -5,27 +5,29 @@ It is designed to support the Planting Optimisation Tool by converting longitude
 gis/
 │
 ├── assets/
-│   └── gadm41_TLS_3.json        # Administrative boundary data for Timor-Leste
+│   └── gadm41_TLS_3.json           # Administrative boundary data for Timor-Leste
 │
 ├── config/
-│   └── settings.py              # Environment variable loading (service account, key paths)
+│   └── settings.py                 # Environment variable loading (service account, key paths)
 │
 ├── core/
-│   ├── extract_data.py          # Functions to fetch rainfall, temp, pH, elevation, landcover
-│   ├── farm_profile.py          # Builds a farm profile from coordinates
-│   ├── gee_client.py            # Earth Engine initialization + client handling
-│   └── geometry_parser.py       # Parsers for point, multipoint, polygon inputs
+│   ├── extract_data.py             # Functions to fetch rainfall, temp, pH, elevation, landcover
+│   ├── farm_profile.py             # Builds a farm profile from coordinates
+│   ├── gee_client.py               # Earth Engine initialization + client handling
+│   └── geometry_parser.py          # Parsers for point, multipoint, polygon inputs
 |___docs/
-|   └── README.md                # folder structure, update works
+|   ├── README.md                    # documentation for GIS
+|   └── farm_boundaries_minimal.gpkg # minimal farm boundaries with farm_id and polygon coordinates
 │
 ├── keys/
-│   └── <service-account>.json   # Local service account key (ignored by Git)
+│   └── <service-account>.json      # Local service account key (ignored by Git)
 │
-├── .env                         # GEE_SERVICE_ACCOUNT and GEE_KEY_PATH variables
+├── .env                            # GEE_SERVICE_ACCOUNT and GEE_KEY_PATH variables
 ├── tests/
-│   └──test_gis.py               # unit tests for all gis functions
+│   └──test_gis.py                  # unit tests for all gis functions
 ├── utils 
-    └──build_farm_table.py       # script to load farm_boundaries.gpkg and generates a CSV for later import into PostgreSQL
+    └──build_farm_geolocation.py    # script to load farm_boundaries.gpkg and generates a minimal farm boundaries with just farm_id and
+                                    their polygon coordinations.
 ```
 
 # Function Documentation
@@ -77,3 +79,65 @@ Returns the landcover class for the farm containing the point, including "forest
 
 **get_NDVI()**
 turns the mean NDVI (Normalised Difference Vegetation Index, -1 to 1) at a point for the year 2025 from Modis Dataset.
+
+**farm_boundaries_minimal.gpkg**
+
+Before importing the data, ensure that your PostgreSQL instance has PostGIS installed.
+
+- Sample Docker Setup for Postgre and PostGIS
+
+```
+version: '3.1'
+
+services:
+  db:
+    image: postgis/postgis
+    container_name: postgis_container
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: gisdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+
+```
+
+Importing the GeoPackage into PostGIS Using GeoPandas
+
+
+```
+import geopandas as gpd
+from sqlalchemy import create_engine
+
+# Connect to Postgres/PostGIS
+engine = create_engine("postgresql://postgres:password@localhost:5432/pot_db")
+
+# Read the GeoPackage
+gdf = gpd.read_file("farm_boundaries_minimal.gpkg")
+
+# Save into PostGIS
+gdf.to_postgis(
+    name="farm_boundaries",
+    con=engine,
+    if_exists="replace",   # or "append"
+    index=False
+)
+```
+
+Checking If a Point Falls Inside a Farm Polygon
+
+```
+SELECT farm_id
+FROM farm_boundaries
+WHERE ST_Contains(
+    polygon,
+    ST_SetSRID(ST_Point(:lon, :lat), 4326)
+);
+
+```

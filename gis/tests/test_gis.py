@@ -420,9 +420,9 @@ def test_all_extraction_data_types(gee_initialized, test_point, test_polygon):
     temp = get_temperature(test_point, year=2024)
     elevation = get_elevation(test_point)
 
-    assert isinstance(rainfall, int), "❌ rainfall must be Integer"
-    assert isinstance(temp, int), "❌ temperature must be Integer"
-    assert isinstance(elevation, int), "❌ elevation must be Integer"
+    assert isinstance(rainfall, int), "rainfall must be Integer"
+    assert isinstance(temp, int), "temperature must be Integer"
+    assert isinstance(elevation, int), "elevation must be Integer"
 
     print("✓ Integer types:")
     print(f"  rainfall_mm:          {type(rainfall).__name__:8s} = {rainfall}")
@@ -436,11 +436,11 @@ def test_all_extraction_data_types(gee_initialized, test_point, test_polygon):
     lat, lon = get_centroid_lat_lon(test_polygon)
 
     if ph is not None:
-        assert isinstance(ph, float), "❌ pH must be Float"
-    assert isinstance(slope, float), "❌ slope must be Float"
-    assert isinstance(area, float), "❌ area must be Float"
-    assert isinstance(lat, float), "❌ latitude must be Float"
-    assert isinstance(lon, float), "❌ longitude must be Float"
+        assert isinstance(ph, float), "pH must be Float"
+    assert isinstance(slope, float), "slope must be Float"
+    assert isinstance(area, float), "area must be Float"
+    assert isinstance(lat, float), "latitude must be Float"
+    assert isinstance(lon, float), "longitude must be Float"
 
     print("\n✓ Float types:")
     if ph is not None:
@@ -451,7 +451,7 @@ def test_all_extraction_data_types(gee_initialized, test_point, test_polygon):
     print(f"  longitude:            {type(lon).__name__:8s} = {lon} (6 decimals)")
 
     print("\n" + "=" * 80)
-    print("✅ ALL DATA TYPES MATCH SCHEMA")
+    print("ALL DATA TYPES MATCH SCHEMA")
     print("=" * 80 + "\n")
     assert TEXTURE_MAP["loam"] == 4
 
@@ -644,7 +644,7 @@ def test_farm_profile_schema_compliance(gee_initialized, test_point):
     )
 
     print("\n" + "=" * 80)
-    print("✅ FARM PROFILE IS SCHEMA COMPLIANT")
+    print("FARM PROFILE IS SCHEMA COMPLIANT")
     print("=" * 80)
 
 

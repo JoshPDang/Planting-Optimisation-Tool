@@ -44,11 +44,14 @@ The module automatically applies validated bias corrections and includes data qu
 gis/
 │
 │
+├── assets/
+│    ├── all_farm_sample.csv      # Farm data sample, provided by PO
+│    └── farm_boundaries.gpkg     # Farms' geolocations 
+│
 ├── config/
 │   └── settings.py              # Environment variable loading (service account, key paths)
 │                                # Dataset configurations (CHIRPS, MODIS, SRTM, etc.)
 │                                # Texture mapping dictionary
-│
 ├── core/
 │   ├── extract_data.py          # Functions to fetch rainfall, temp, pH, elevation, landcover
 │   ├── farm_profile.py          # Builds farm profiles from coordinates (single & bulk)
@@ -57,18 +60,22 @@ gis/
 │
 ├── docs/
 │   ├── README.md                # This file - module documentation
-│   └──output_schema.md          # schema for farm profile output
+│   └── output_schema.md          # schema for farm profile output
+│
+├── notebook/
+│   ├── all_farm_environmental_factors.csv              # (to be updated by Danny)
+│   ├── extract_environmental_factor_each_farm.ipynb    # (to be updated by Danny)
+│   └── eda_gee.ipynb                                   # EDA: comparing data extracted directly from GEE and
+│                                                               data provided by PO.
 │
 ├── keys/
-│   └── <service-account>.json   # Local service account key (ignored by Git)
+│   └── <service-account>.json   # service account key (ignored by Git)
 │
 ├── tests/
 │   └── test_gis.py              # Unit tests for all GIS functions (34 tests)
 │
 ├── .env                         # GEE_SERVICE_ACCOUNT and GEE_KEY_PATH variables
-├── .env.example                 # Template for environment variables
-├── .gitignore                   # Excludes credentials and temporary files
-└── requirements.txt             # Python dependencies
+
 ```
 
 ## Key Features
@@ -99,10 +106,10 @@ Local datasets collected and maintained by the Product Owner (field measurements
 | Dataset | Variable | Source | Coverage |
 |---------|----------|--------|----------|
 | Farm Boundaries | Geometry | farm_boundaries.gpkg | 940 farms |
-| Rainfall | 5-year avg (2020-2024) | PO field stations | Timor-Leste |
-| Temperature | 5-year avg (2020-2024) | PO weather stations | Timor-Leste |
+| Rainfall | 5-year avg (2020-2024) | CHIRPS_5yr_Avg_Annual_Rainfall_2020_2024_30m | Timor-Leste |
+| Temperature | 5-year avg (2020-2024) | MOD11A2_5yr_Avg_Annual_temperature_2020_2024_30m | Timor-Leste |
 | Soil pH | Point measurements | PO soil surveys | 911 field samples |
-| Soil Texture | Texture classes | PO soil analysis | Selected regions |
+| Soil Texture | Texture classes | QGIS Soil Texture | Selected regions |
 
 **Note**: PO datasets represent ground-truth measurements used to validate the global GEE datasets.
 

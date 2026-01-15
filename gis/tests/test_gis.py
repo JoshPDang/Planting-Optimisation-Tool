@@ -17,7 +17,6 @@ from config.settings import (
     KEY_PATH,
     get_dataset_config,
     TEXTURE_MAP,
-    list_datasets,
 )
 from core.gee_client import init_gee
 from core.extract_data import (
@@ -53,6 +52,9 @@ from core.farm_profile import (
 @pytest.fixture(scope="module")
 def gee_initialized():
     """Initialize GEE once for all tests."""
+    if SERVICE_ACCOUNT is None or KEY_PATH is None:
+        pytest.skip("GEE credentials not available (expected in CI without secrets)")
+    
     try:
         init_gee()
         return True
@@ -85,6 +87,10 @@ def test_polygon():
 # ============================================================================
 
 
+@pytest.mark.skipif(
+    SERVICE_ACCOUNT is None,
+    reason="GEE credentials not available (expected in CI without secrets)"
+)
 def test_init_gee():
     """Test GEE initialization with service account."""
     assert SERVICE_ACCOUNT is not None, "GEE_SERVICE_ACCOUNT not set in .env"
@@ -475,6 +481,10 @@ def test_invalid_geometry():
         parse_geometry("invalid")
 
 
+@pytest.mark.skipif(
+    SERVICE_ACCOUNT is None,
+    reason="GEE credentials not available (expected in CI without secrets)"
+)
 def test_missing_credentials_error():
     """Test that missing credentials raise appropriate error."""
     from config.settings import SERVICE_ACCOUNT, KEY_PATH
@@ -534,7 +544,8 @@ def test_dataset_config_access():
 
 def test_all_datasets_configured():
     """Test that all expected datasets are configured."""
-
+    from config.settings import list_datasets
+    
     datasets = list_datasets()
 
     expected = [

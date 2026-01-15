@@ -40,7 +40,6 @@ DATASETS = {
         "temporal": True,
         "validation_status": "excellent",
     },
-    
     "elevation": {
         "type": "raster",
         "asset_id": "CGIAR/SRTM90_V4",  # or "USGS/SRTMGL1_003" for 30m
@@ -52,7 +51,6 @@ DATASETS = {
         "post_process": "round_int",
         "validation_status": "excellent",
     },
-    
     "temperature": {
         "type": "raster",
         "asset_id": "MODIS/061/MOD11A2",  # 8-day composite
@@ -69,7 +67,6 @@ DATASETS = {
         "validation_status": "good",
         "note": "Requires -4.43°C bias correction (LST vs air temp difference)",
     },
-    
     "soil_ph": {
         "type": "raster",
         "asset_id": "OpenLandMap/SOL/SOL_PH-H2O_USDA-4C1A2A_M/v02",
@@ -83,7 +80,6 @@ DATASETS = {
         "validation_status": "poor",
         "warning": "Low correlation (r=0.18) - Not suitable for Timor-Leste. Use local calibration model or exclude from analysis.",
     },
-    
     "soil_texture": {
         "type": "raster",
         "asset_id": "OpenLandMap/SOL/SOL_PH-H2O_USDA-4C1A2A_M/v02",  # Using pH as proxy to demonstrate extraction
@@ -95,7 +91,6 @@ DATASETS = {
         "scale_factor": 0.1,
         "note": "This is a demonstration placeholder. Replace with actual soil texture asset when available.",
     },
-    
     "dem": {
         "type": "raster",
         "asset_id": "CGIAR/SRTM90_V4",
@@ -110,16 +105,12 @@ DATASETS = {
 # HELPER FUNCTIONS
 # ============================================================================
 
+
 def get_dataset_config(name: str) -> dict:
     """Get configuration for a dataset."""
     if name not in DATASETS:
         raise ValueError(f"Unknown dataset: {name}. Available: {list(DATASETS.keys())}")
     return DATASETS[name]
-
-
-def list_datasets() -> list[str]:
-    """List all available datasets."""
-    return list(DATASETS.keys())
 
 
 def get_dataset_info(name: str) -> str:
@@ -131,16 +122,16 @@ def get_dataset_info(name: str) -> str:
 def update_dataset(name: str, **kwargs):
     """
     Update configuration for a specific dataset.
-    
+
     Example:
-        update_dataset('rainfall', 
+        update_dataset('rainfall',
                       asset_id='projects/your-project/your-rainfall',
                       band='precipitation',
                       scale=5000)
     """
     if name not in DATASETS:
         raise ValueError(f"Unknown dataset: {name}")
-    
+
     DATASETS[name].update(kwargs)
 
 

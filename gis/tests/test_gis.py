@@ -295,7 +295,7 @@ def test_rainfall_data_type(gee_initialized, test_point):
     )
     assert not isinstance(rainfall, bool), "Rainfall should not be boolean"
 
-    print(f"✓ Rainfall data type: {type(rainfall).__name__} = {rainfall} mm")
+    print(f" Rainfall data type: {type(rainfall).__name__} = {rainfall} mm")
 
 
 def test_temperature_data_type(gee_initialized, test_point):
@@ -308,7 +308,7 @@ def test_temperature_data_type(gee_initialized, test_point):
     )
     assert not isinstance(temp, bool), "Temperature should not be boolean"
 
-    print(f"✓ Temperature data type: {type(temp).__name__} = {temp}°C")
+    print(f" Temperature data type: {type(temp).__name__} = {temp}°C")
 
 
 def test_elevation_data_type(gee_initialized, test_point):
@@ -321,7 +321,7 @@ def test_elevation_data_type(gee_initialized, test_point):
     )
     assert not isinstance(elevation, bool), "Elevation should not be boolean"
 
-    print(f"✓ Elevation data type: {type(elevation).__name__} = {elevation} m")
+    print(f" Elevation data type: {type(elevation).__name__} = {elevation} m")
 
 
 def test_ph_data_type(gee_initialized, test_point):
@@ -338,9 +338,9 @@ def test_ph_data_type(gee_initialized, test_point):
             decimals = len(ph_str.split(".")[1])
             assert decimals <= 1, f"pH should have max 1 decimal place, got {decimals}"
 
-        print(f"✓ pH data type: {type(ph).__name__} = {ph} (1 decimal)")
+        print(f" pH data type: {type(ph).__name__} = {ph} (1 decimal)")
     else:
-        print("⚠ pH is None (no data at location)")
+        print(" pH is None (no data at location)")
 
 
 def test_slope_data_type(gee_initialized, test_point):
@@ -356,7 +356,7 @@ def test_slope_data_type(gee_initialized, test_point):
         decimals = len(slope_str.split(".")[1])
         assert decimals <= 1, f"Slope should have max 1 decimal place, got {decimals}"
 
-    print(f"✓ Slope data type: {type(slope).__name__} = {slope}° (1 decimal)")
+    print(f" Slope data type: {type(slope).__name__} = {slope}° (1 decimal)")
 
 
 def test_area_data_type(gee_initialized, test_polygon):
@@ -372,7 +372,7 @@ def test_area_data_type(gee_initialized, test_polygon):
         decimals = len(area_str.split(".")[1])
         assert decimals <= 3, f"Area should have max 3 decimal places, got {decimals}"
 
-    print(f"✓ Area data type: {type(area).__name__} = {area} ha (3 decimals)")
+    print(f" Area data type: {type(area).__name__} = {area} ha (3 decimals)")
 
 
 def test_centroid_data_type(gee_initialized, test_polygon):
@@ -400,7 +400,7 @@ def test_centroid_data_type(gee_initialized, test_polygon):
             f"Longitude should have max 6 decimal places, got {decimals}"
         )
 
-    print(f"✓ Centroid data types: {type(lat).__name__} = ({lat}, {lon}) (6 decimals)")
+    print(f" Centroid data types: {type(lat).__name__} = ({lat}, {lon}) (6 decimals)")
 
 
 def test_all_extraction_data_types(gee_initialized, test_point, test_polygon):
@@ -424,7 +424,7 @@ def test_all_extraction_data_types(gee_initialized, test_point, test_polygon):
     assert isinstance(temp, int), "temperature must be Integer"
     assert isinstance(elevation, int), "elevation must be Integer"
 
-    print("✓ Integer types:")
+    print(" Integer types:")
     print(f"  rainfall_mm:          {type(rainfall).__name__:8s} = {rainfall}")
     print(f"  temperature_celsius:  {type(temp).__name__:8s} = {temp}")
     print(f"  elevation_m:          {type(elevation).__name__:8s} = {elevation}")
@@ -442,7 +442,7 @@ def test_all_extraction_data_types(gee_initialized, test_point, test_polygon):
     assert isinstance(lat, float), "latitude must be Float"
     assert isinstance(lon, float), "longitude must be Float"
 
-    print("\n✓ Float types:")
+    print("\n Float types:")
     if ph is not None:
         print(f"  ph:                   {type(ph).__name__:8s} = {ph} (1 decimal)")
     print(f"  slope:                {type(slope).__name__:8s} = {slope} (1 decimal)")
@@ -560,7 +560,7 @@ def test_farm_profile_schema_compliance(gee_initialized, test_point):
     print("=" * 80)
 
     # Test Integer types
-    print("\n✓ Integer types (should be int, not float):")
+    print("\n Integer types (should be int, not float):")
 
     assert isinstance(profile["rainfall_mm"], int), (
         f"rainfall_mm must be Integer, got {type(profile['rainfall_mm']).__name__}"
@@ -584,7 +584,7 @@ def test_farm_profile_schema_compliance(gee_initialized, test_point):
     )
 
     # Test Float types with correct decimal places
-    print("\n✓ Float types (with correct decimal precision):")
+    print("\n Float types (with correct decimal precision):")
 
     if profile["soil_ph"] is not None:
         assert isinstance(profile["soil_ph"], float), (
@@ -635,7 +635,7 @@ def test_farm_profile_schema_compliance(gee_initialized, test_point):
     )
 
     # Test Boolean type
-    print("\n✓ Boolean type:")
+    print("\n Boolean type:")
     assert isinstance(profile["coastal"], bool), (
         f"coastal must be Boolean, got {type(profile['coastal']).__name__}"
     )

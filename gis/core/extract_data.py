@@ -5,14 +5,14 @@ Uses config/settings.py for all dataset configurations.
 
 SCHEMA COMPLIANCE (data_dictionary.md):
 All extraction functions return values that comply with the data dictionary schema:
-- get_rainfall() → Integer (mm), range: [1000, 3000]
-- get_temperature() → Integer (celsius), range: [15, 30]
-- get_elevation() → Integer (m), range: [0, 2963]
-- get_ph() → Float (pH units, 1 decimal), range: [4.0, 8.5]
-- get_slope() → Float (degrees, 1 decimal), range: [0, 90]
-- get_area_ha() → Float (ha, 3 decimals), range: [0, 100]
-- get_centroid_lat_lon() → (Float, Float) (6 decimals), lat: [-90, 90], lon: [-180, 180]
-- get_texture_id() → Integer (texture ID), range: [1, 12]
+- get_rainfall() → Integer (mm)
+- get_temperature() → Integer (celsius)
+- get_elevation() → Integer (m)
+- get_ph() → Float (pH units, 1 decimal)
+- get_slope() → Float (degrees, 1 decimal)
+- get_area_ha() → Float (ha, 3 decimals)
+- get_centroid_lat_lon() → (Float, Float) (6 decimals)
+- get_texture_id() → Integer (texture ID)
 """
 
 import ee

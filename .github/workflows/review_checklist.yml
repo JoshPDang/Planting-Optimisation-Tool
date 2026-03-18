@@ -1,10 +1,12 @@
-# This workflow will post a comment when a user is assigned to reviewing a PR
-# It will show them the checklist, to guide them when reviewing the PR
 name: Post Review Checklist
 
 on:
-  pull_request:
+  pull_request_target:
     types: [review_requested]
+
+permissions:
+  pull-requests: write
+  issues: write
 
 jobs:
   post-checklist:
@@ -13,8 +15,6 @@ jobs:
     if: |
       github.event.requested_reviewer.login != 'leecopland' &&
       github.event.requested_reviewer.login != 'dwstephens'
-    permissions:
-      pull-requests: write
 
     steps:
       - name: Post review checklist comment
@@ -25,7 +25,7 @@ jobs:
             const author   = context.payload.pull_request.user.login;
 
             const body = `
-            ## 👀 PR Review Checklist
+            ## PR Review Checklist
 
             Hey @${reviewer}, you've been assigned to review this PR by @${author}!
             Please work through the checklist below before approving.
@@ -62,7 +62,7 @@ jobs:
             - [ ] Documentation updated (if applicable)
             - [ ] Local data locations documented (if applicable)
             - [ ] Task in Planner is linked to this PR (e.g. \`Closes #123\`)
-            - [ ] Reviewed and approved ← _that's you!_
+            - [ ] Reviewed and approved <- _that's you!_
 
             **If this PR is for a User Story, also confirm:**
             - [ ] All related tasks are Done as per the above
@@ -70,7 +70,7 @@ jobs:
 
             ---
 
-            > Not sure about something? Leave a comment on the relevant line and tag the author
+            > Not sure about something? Leave a comment on the relevant line and tag the author — that's what reviews are for!
             `;
 
             // Avoid duplicate comments if a reviewer is unassigned and re-assigned.

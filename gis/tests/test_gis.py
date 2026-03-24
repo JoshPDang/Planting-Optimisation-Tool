@@ -15,10 +15,13 @@ import pytest
 
 from config.settings import (
     KEY_PATH,
+    RIPARIAN_BUFFER_M,
     SERVICE_ACCOUNT,
     TEXTURE_MAP,
+    WATERWAYS_PATH,
     get_dataset_config,
 )
+from core.riparian import _load_waterways, get_riparian_flags
 from core.extract_data import (
     _normalize_texture_name,
     get_area_ha,
@@ -80,6 +83,22 @@ def test_polygon():
             (-8.55, 125.57),
         ]
     ]
+
+
+@pytest.fixture(scope="module")
+def waterways_available():
+    """
+    Skip riparian integration tests if the waterways dataset is not on disk.
+    Unit tests (using mocks) run regardless — only live file tests are skipped.
+    """
+    import os
+    if not os.path.exists(WATERWAYS_PATH):
+        pytest.skip(
+            f"Waterways dataset not found at '{WATERWAYS_PATH}'. "
+            "Download from MS Teams -> Planting Optimisation Tool -> Datasets -> GIS -> Timor Leste Waterways"
+        )
+    _load_waterways.cache_clear()
+    return True
 
 
 # ============================================================================
@@ -537,6 +556,180 @@ def test_all_datasets_configured():
         assert dataset in datasets, f"Dataset '{dataset}' not configured"
 
     print(f"\nConfigured datasets: {', '.join(datasets)}")
+
+
+
+# ============================================================================
+# RIPARIAN ZONE TESTS — AC1: Dataset ingested and indexed (US-018)
+# ============================================================================
+
+
+def test_riparian_settings_configured():
+    """RIPARIAN AC1: Riparian settings exist in config."""
+    assert isinstance(RIPARIAN_BUFFER_M, float), "RIPARIAN_BUFFER_M should be a float"
+    assert RIPARIAN_BUFFER_M > 0, "RIPARIAN_BUFFER_M should be positive"
+    assert isinstance(WATERWAYS_PATH, str), "WATERWAYS_PATH should be a string"
+    print(f"\nSUCCESS: Riparian config — buffer={RIPARIAN_BUFFER_M}m, path='{WATERWAYS_PATH}'")
+
+
+def test_riparian_dataset_loads_and_indexes(waterways_available):
+    """RIPARIAN AC1: Waterways GeoJSON loads, reprojects to UTM 52S, and builds spatial index."""
+    _load_waterways.cache_clear()
+    gdf = _load_waterways()
+
+    assert gdf is not None, "GeoDataFrame should not be None"
+    assert len(gdf) > 0, "Waterways dataset should have features"
+    assert gdf.crs.to_epsg() == 32752, "Dataset must be projected to UTM Zone 52S (EPSG:32752)"
+    assert gdf.sindex is not None, "Spatial index (STRtree) must be built"
+
+    print(f"\nSUCCESS: Waterways loaded — {len(gdf)} features, CRS: {gdf.crs.to_epsg()}, index built")
+
+
+def test_riparian_dataset_cached(waterways_available):
+    """RIPARIAN AC1: _load_waterways() returns the same object on repeated calls (lru_cache)."""
+    first = _load_waterways()
+    second = _load_waterways()
+    assert first is second, "Dataset should be cached — repeated calls must return the same object"
+    print("\nSUCCESS: Waterways dataset is cached (lru_cache hit confirmed)")
+
+
+# ============================================================================
+# RIPARIAN ZONE TESTS — AC2: Geospatial intersection check (US-018)
+# ============================================================================
+
+
+def test_riparian_flags_point(waterways_available, test_point):
+    """RIPARIAN AC2+AC3: get_riparian_flags() returns valid result for a point geometry."""
+    result = get_riparian_flags(test_point)
+
+    assert "is_riparian" in result, "Result must contain 'is_riparian'"
+    assert "distance_to_nearest_waterway_m" in result, "Result must contain 'distance_to_nearest_waterway_m'"
+    assert isinstance(result["is_riparian"], bool), "is_riparian must be a Python bool"
+    assert isinstance(result["distance_to_nearest_waterway_m"], float), "distance must be a float"
+    assert result["distance_to_nearest_waterway_m"] >= 0, "Distance must be non-negative"
+
+    status = "RIPARIAN" if result["is_riparian"] else "NOT RIPARIAN"
+    print(f"\nSUCCESS: Riparian check (point) — {status}, distance={result['distance_to_nearest_waterway_m']}m")
+
+
+def test_riparian_flags_polygon(waterways_available, test_polygon):
+    """RIPARIAN AC2+AC3: get_riparian_flags() works for polygon geometry."""
+    result = get_riparian_flags(test_polygon)
+
+    assert isinstance(result["is_riparian"], bool)
+    assert isinstance(result["distance_to_nearest_waterway_m"], float)
+
+    status = "RIPARIAN" if result["is_riparian"] else "NOT RIPARIAN"
+    print(f"\nSUCCESS: Riparian check (polygon) — {status}, distance={result['distance_to_nearest_waterway_m']}m")
+
+
+def test_riparian_custom_buffer(waterways_available, test_point):
+    """RIPARIAN AC2: Custom buffer_m parameter is respected."""
+    result_tight = get_riparian_flags(test_point, buffer_m=1)
+    result_wide = get_riparian_flags(test_point, buffer_m=100_000)  # 100km — should always be True
+
+    # A 100km buffer around any point in Timor-Leste must intersect a waterway
+    assert result_wide["is_riparian"] is True, "100km buffer should always be riparian in Timor-Leste"
+    # Both share the same underlying distance
+    assert result_tight["distance_to_nearest_waterway_m"] == result_wide["distance_to_nearest_waterway_m"]
+
+    print(f"\nSUCCESS: Buffer respected — 1m: {result_tight['is_riparian']}, 100km: {result_wide['is_riparian']}")
+
+
+def test_riparian_missing_dataset_returns_none_sentinel(tmp_path, monkeypatch):
+    """RIPARIAN AC2: Returns None sentinel (not False) when dataset is unavailable."""
+    import core.riparian as rip_mod
+    # WATERWAYS_PATH is a module-level variable — patch it directly
+    monkeypatch.setattr(rip_mod, "WATERWAYS_PATH", str(tmp_path / "missing.geojson"))
+    rip_mod._load_waterways.cache_clear()
+
+    result = rip_mod.get_riparian_flags((-8.5, 125.9))
+
+    assert result["is_riparian"] is None, "Missing dataset must return None, not False"
+    assert result["distance_to_nearest_waterway_m"] is None
+    print("\nSUCCESS: Missing dataset returns None sentinel (not False)")
+    rip_mod._load_waterways.cache_clear()
+
+
+# ============================================================================
+# RIPARIAN ZONE TESTS — AC3: Profile output includes riparian fields (US-018)
+# ============================================================================
+
+
+def test_farm_profile_includes_riparian_fields(gee_initialized, waterways_available, test_point):
+    """RIPARIAN AC3: build_farm_profile output includes is_riparian and distance fields."""
+    profile = build_farm_profile(geometry=test_point, year=2024, farm_id=1)
+
+    assert profile["status"] == "success"
+    assert "is_riparian" in profile, "Profile must include 'is_riparian'"
+    assert "distance_to_nearest_waterway_m" in profile, "Profile must include 'distance_to_nearest_waterway_m'"
+    assert isinstance(profile["is_riparian"], bool), "is_riparian must be bool"
+    assert isinstance(profile["distance_to_nearest_waterway_m"], float), "distance must be float"
+
+    status = "RIPARIAN" if profile["is_riparian"] else "NOT RIPARIAN"
+    print(f"\nSUCCESS: Profile riparian fields — {status}, distance={profile['distance_to_nearest_waterway_m']}m")
+
+
+def test_farm_profile_riparian_none_when_dataset_missing(gee_initialized, tmp_path, monkeypatch):
+    """RIPARIAN AC3: Profile fields are None (not missing, not False) when dataset unavailable."""
+    import core.riparian as rip_mod
+    # WATERWAYS_PATH is a module-level variable — patch it directly
+    monkeypatch.setattr(rip_mod, "WATERWAYS_PATH", str(tmp_path / "missing.geojson"))
+    rip_mod._load_waterways.cache_clear()
+
+    profile = build_farm_profile(geometry=(-8.569, 126.676), year=2024, farm_id=99)
+
+    # Profile should still succeed — riparian is non-fatal
+    assert profile["status"] == "success", "Profile build should succeed even without waterways data"
+    assert "is_riparian" in profile, "is_riparian key must always be present"
+    assert profile["is_riparian"] is None, "Must be None, not False, when dataset missing"
+    assert profile["distance_to_nearest_waterway_m"] is None
+
+    print("\nSUCCESS: Profile still builds successfully with None riparian fields when dataset missing")
+    rip_mod._load_waterways.cache_clear()
+
+
+def test_update_farm_profile_riparian_fields(gee_initialized, waterways_available, test_point):
+    """RIPARIAN AC3: update_farm_profile can selectively update riparian fields."""
+    profile = build_farm_profile(geometry=test_point, year=2024, farm_id=1)
+    assert profile["status"] == "success"
+
+    # Selectively update only riparian fields
+    updated = update_farm_profile(
+        existing_profile=profile,
+        geometry=test_point,
+        fields=["is_riparian", "distance_to_nearest_waterway_m"],
+    )
+
+    assert updated["status"] == "success"
+    assert isinstance(updated["is_riparian"], bool)
+    assert isinstance(updated["distance_to_nearest_waterway_m"], float)
+    # Non-riparian fields should be unchanged
+    assert updated["rainfall_mm"] == profile["rainfall_mm"]
+
+    print(f"\nSUCCESS: Selective riparian update — is_riparian={updated['is_riparian']}, "
+          f"distance={updated['distance_to_nearest_waterway_m']}m")
+
+
+def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_available):
+    """RIPARIAN AC3: bulk_create_profiles output DataFrame includes riparian columns."""
+    farms = [
+        {"farm_id": 1, "geometry": (-8.55, 125.57)},
+        {"farm_id": 2, "geometry": (-8.56, 125.58)},
+    ]
+
+    profiles_df = bulk_create_profiles(farms, year=2024, max_workers=2)
+
+    assert "is_riparian" in profiles_df.columns, "DataFrame must have 'is_riparian' column"
+    assert "distance_to_nearest_waterway_m" in profiles_df.columns
+
+    successful = profiles_df[profiles_df["status"] == "success"]
+    if len(successful) > 0:
+        assert successful["is_riparian"].apply(lambda x: isinstance(x, bool)).all(), \
+            "All successful profiles must have bool is_riparian"
+
+    print(f"\nSUCCESS: Bulk riparian results:")
+    print(profiles_df[["id", "is_riparian", "distance_to_nearest_waterway_m", "status"]])
 
 
 # ============================================================================

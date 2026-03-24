@@ -160,10 +160,7 @@ def update_farm_profile(
             if field in field_extractors:
                 updated_profile[field] = field_extractors[field]()
             elif field == "coastal":
-                updated_profile["coastal"] = (
-                    updated_profile.get("elevation_m", 1000) < 100
-                    and 500 <= updated_profile.get("rainfall_mm", 0) <= 3000
-                )
+                updated_profile["coastal"] = updated_profile.get("elevation_m", 1000) < 100 and 500 <= updated_profile.get("rainfall_mm", 0) <= 3000
             elif field in ["latitude", "longitude"]:
                 lat, lon = get_centroid_lat_lon(geometry)
                 updated_profile["latitude"] = lat
@@ -231,9 +228,7 @@ def bulk_create_profiles(
                 farm[geometry_field],
                 year,
                 farm.get(id_field),
-                **{
-                    k: v for k, v in farm.items() if k not in [geometry_field, id_field]
-                },
+                **{k: v for k, v in farm.items() if k not in [geometry_field, id_field]},
             ): farm
             for farm in farms
         }
@@ -253,9 +248,7 @@ def bulk_create_profiles(
                 elapsed = time.time() - start_time
                 rate = completed / elapsed
                 remaining = (total - completed) / rate if rate > 0 else 0
-                print(
-                    f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s"
-                )
+                print(f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s")
 
     elapsed = time.time() - start_time
     success_count = sum(1 for p in profiles if p.get("status") == "success")
@@ -338,17 +331,13 @@ def bulk_update_profiles(
                 elapsed = time.time() - start_time
                 rate = completed / elapsed
                 remaining = (total - completed) / rate if rate > 0 else 0
-                print(
-                    f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s"
-                )
+                print(f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s")
 
     elapsed = time.time() - start_time
     success_count = sum(1 for p in updated_profiles if p.get("status") == "success")
 
     print("\nBulk update complete!")
     print(f"  Total time: {elapsed:.1f}s")
-    print(
-        f"  Success: {success_count}/{len(updated_profiles)} ({success_count / len(updated_profiles) * 100:.1f}%)"
-    )
+    print(f"  Success: {success_count}/{len(updated_profiles)} ({success_count / len(updated_profiles) * 100:.1f}%)")
 
     return pd.DataFrame(updated_profiles)

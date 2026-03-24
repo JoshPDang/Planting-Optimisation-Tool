@@ -27,9 +27,7 @@ def test_rotate_grid_basic(farm_polygon_45):
     # Use a small polygon and large spacing
     spacing = 4.0
 
-    initial_grid = generate_planting_points(
-        farm_polygon_45, "EPSG:4326", farm_polygon_45.bounds, spacing
-    )
+    initial_grid = generate_planting_points(farm_polygon_45, "EPSG:4326", farm_polygon_45.bounds, spacing)
 
     final_grid, angle = rotate_grid(farm_polygon_45, initial_grid, spacing)
 

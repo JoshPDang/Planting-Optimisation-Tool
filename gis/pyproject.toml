@@ -17,6 +17,8 @@ dependencies = [
     "ruff>=0.14.5",
     # Environmental loading
     "python-dotenv>=1.0.1",
+    "rasterio>=1.5.0",
+    "numpy>=2.3.5",
     "scipy>=1.17.1",
     "scikit-learn>=1.8.0",
     "matplotlib>=3.10.8",
@@ -27,8 +29,23 @@ dependencies = [
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.package-data]
+sapling_estimation = ["sampling_estimation/data/*"]
+
 [tool.setuptools]
 packages = ["core", "config", "sapling_estimation"]
+include-package-data = true
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 200
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "N",
+]

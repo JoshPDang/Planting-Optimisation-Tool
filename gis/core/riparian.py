@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import geopandas as gpd
+
 from config.settings import WATERWAYS_PATH
 
 # ============================================================================
@@ -90,9 +91,7 @@ def _to_shapely_projected(geometry):
         geom = Point(lon, lat)  # Shapely convention: (x=lon, y=lat)
 
     # List of (lat, lon) tuples → MultiPoint
-    elif isinstance(geometry, list) and all(
-        isinstance(p, tuple) and len(p) == 2 for p in geometry
-    ):
+    elif isinstance(geometry, list) and all(isinstance(p, tuple) and len(p) == 2 for p in geometry):
         geom = MultiPoint([(lon, lat) for lat, lon in geometry])
 
     # List of rings → Polygon
@@ -106,10 +105,7 @@ def _to_shapely_projected(geometry):
         geom = geometry
 
     else:
-        raise ValueError(
-            f"Unsupported geometry format for riparian check: {type(geometry)}. "
-            "Expected (lat, lon) tuple, list of tuples, list of rings, or Shapely geometry."
-        )
+        raise ValueError(f"Unsupported geometry format for riparian check: {type(geometry)}. Expected (lat, lon) tuple, list of tuples, list of rings, or Shapely geometry.")
 
     # Project WGS84 → UTM 52S
     gdf = gpd.GeoDataFrame(geometry=[geom], crs="EPSG:4326")
@@ -159,9 +155,11 @@ def get_riparian_flags(
         farm_geom = _to_shapely_projected(geometry)
 
         # Phase 1: bounding-box filter via spatial index (fast)
-        candidate_indices = list(waterways.sindex.intersection(
-            farm_geom.buffer(buffer_m * 10).bounds  # generous bbox — exact check follows
-        ))
+        candidate_indices = list(
+            waterways.sindex.intersection(
+                farm_geom.buffer(buffer_m * 10).bounds  # generous bbox — exact check follows
+            )
+        )
 
         if candidate_indices:
             # Phase 2: exact distance against spatially nearby candidates only
@@ -183,6 +181,7 @@ def get_riparian_flags(
         # Dataset not available — return None sentinel rather than crash the profile build.
         # Callers should treat None as "check not performed", not as False.
         import warnings
+
         warnings.warn(str(e), stacklevel=2)
         return {
             "is_riparian": None,

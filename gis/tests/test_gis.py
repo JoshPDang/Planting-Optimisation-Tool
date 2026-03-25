@@ -21,7 +21,6 @@ from config.settings import (
     WATERWAYS_PATH,
     get_dataset_config,
 )
-from core.riparian import _load_waterways, get_riparian_flags
 from core.extract_data import (
     _normalize_texture_name,
     get_area_ha,
@@ -46,6 +45,7 @@ from core.geometry_parser import (
     parse_point,
     parse_polygon,
 )
+from core.riparian import _load_waterways, get_riparian_flags
 
 # ============================================================================
 # SETUP AND FIXTURES
@@ -92,11 +92,9 @@ def waterways_available():
     Unit tests (using mocks) run regardless — only live file tests are skipped.
     """
     import os
+
     if not os.path.exists(WATERWAYS_PATH):
-        pytest.skip(
-            f"Waterways dataset not found at '{WATERWAYS_PATH}'. "
-            "Download from MS Teams -> Planting Optimisation Tool -> Datasets -> GIS -> Timor Leste Waterways"
-        )
+        pytest.skip(f"Waterways dataset not found at '{WATERWAYS_PATH}'. Download from MS Teams -> Planting Optimisation Tool -> Datasets -> GIS -> Timor Leste Waterways")
     _load_waterways.cache_clear()
     return True
 
@@ -558,7 +556,6 @@ def test_all_datasets_configured():
     print(f"\nConfigured datasets: {', '.join(datasets)}")
 
 
-
 # ============================================================================
 # RIPARIAN ZONE TESTS — AC1: Dataset ingested and indexed (US-018)
 # ============================================================================
@@ -639,6 +636,7 @@ def test_riparian_custom_buffer(waterways_available, test_point):
 def test_riparian_missing_dataset_returns_none_sentinel(tmp_path, monkeypatch):
     """RIPARIAN AC2: Returns None sentinel (not False) when dataset is unavailable."""
     import core.riparian as rip_mod
+
     # WATERWAYS_PATH is a module-level variable — patch it directly
     monkeypatch.setattr(rip_mod, "WATERWAYS_PATH", str(tmp_path / "missing.geojson"))
     rip_mod._load_waterways.cache_clear()
@@ -673,6 +671,7 @@ def test_farm_profile_includes_riparian_fields(gee_initialized, waterways_availa
 def test_farm_profile_riparian_none_when_dataset_missing(gee_initialized, tmp_path, monkeypatch):
     """RIPARIAN AC3: Profile fields are None (not missing, not False) when dataset unavailable."""
     import core.riparian as rip_mod
+
     # WATERWAYS_PATH is a module-level variable — patch it directly
     monkeypatch.setattr(rip_mod, "WATERWAYS_PATH", str(tmp_path / "missing.geojson"))
     rip_mod._load_waterways.cache_clear()
@@ -707,8 +706,7 @@ def test_update_farm_profile_riparian_fields(gee_initialized, waterways_availabl
     # Non-riparian fields should be unchanged
     assert updated["rainfall_mm"] == profile["rainfall_mm"]
 
-    print(f"\nSUCCESS: Selective riparian update — is_riparian={updated['is_riparian']}, "
-          f"distance={updated['distance_to_nearest_waterway_m']}m")
+    print(f"\nSUCCESS: Selective riparian update — is_riparian={updated['is_riparian']}, distance={updated['distance_to_nearest_waterway_m']}m")
 
 
 def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_available):
@@ -725,10 +723,9 @@ def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_avail
 
     successful = profiles_df[profiles_df["status"] == "success"]
     if len(successful) > 0:
-        assert successful["is_riparian"].apply(lambda x: isinstance(x, bool)).all(), \
-            "All successful profiles must have bool is_riparian"
+        assert successful["is_riparian"].apply(lambda x: isinstance(x, bool)).all(), "All successful profiles must have bool is_riparian"
 
-    print(f"\nSUCCESS: Bulk riparian results:")
+    print("\nSUCCESS: Bulk riparian results:")
     print(profiles_df[["id", "is_riparian", "distance_to_nearest_waterway_m", "status"]])
 
 

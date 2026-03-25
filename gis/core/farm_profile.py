@@ -184,10 +184,7 @@ def update_farm_profile(
             if field in field_extractors:
                 updated_profile[field] = field_extractors[field]()
             elif field == "coastal":
-                updated_profile["coastal"] = (
-                    updated_profile.get("elevation_m", 1000) < 100
-                    and 500 <= updated_profile.get("rainfall_mm", 0) <= 3000
-                )
+                updated_profile["coastal"] = updated_profile.get("elevation_m", 1000) < 100 and 500 <= updated_profile.get("rainfall_mm", 0) <= 3000
             elif field in ["latitude", "longitude"]:
                 lat, lon = get_centroid_lat_lon(geometry)
                 updated_profile["latitude"] = lat
@@ -245,9 +242,11 @@ def bulk_create_profiles(
     # This ensures the file is read and indexed exactly once, not once per thread.
     try:
         from core.riparian import _load_waterways
+
         _load_waterways()
     except FileNotFoundError as e:
         import warnings
+
         warnings.warn(
             f"Waterways dataset unavailable — is_riparian will be None for all farms.\n{e}",
             stacklevel=2,
@@ -285,11 +284,7 @@ def bulk_create_profiles(
                 elapsed = time.time() - start_time
                 rate = completed / elapsed
                 remaining = (total - completed) / rate if rate > 0 else 0
-                print(
-                    f"  Progress: {completed}/{total} "
-                    f"({completed / total * 100:.1f}%) - "
-                    f"{rate:.1f} farms/sec - ETA: {remaining:.0f}s"
-                )
+                print(f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s")
 
     elapsed = time.time() - start_time
     success_count = sum(1 for p in profiles if p.get("status") == "success")
@@ -338,14 +333,14 @@ def bulk_update_profiles(
     year = year or 2024
 
     # Warm up waterways cache before thread pool (same reason as bulk_create)
-    if fields is None or any(
-        f in (fields or []) for f in ["is_riparian", "distance_to_nearest_waterway_m"]
-    ):
+    if fields is None or any(f in (fields or []) for f in ["is_riparian", "distance_to_nearest_waterway_m"]):
         try:
             from core.riparian import _load_waterways
+
             _load_waterways()
         except FileNotFoundError as e:
             import warnings
+
             warnings.warn(str(e), stacklevel=2)
 
     updated_profiles = []
@@ -383,18 +378,13 @@ def bulk_update_profiles(
                 elapsed = time.time() - start_time
                 rate = completed / elapsed
                 remaining = (total - completed) / rate if rate > 0 else 0
-                print(
-                    f"  Progress: {completed}/{total} "
-                    f"({completed / total * 100:.1f}%) - "
-                    f"{rate:.1f} farms/sec - ETA: {remaining:.0f}s"
-                )
+                print(f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s")
 
     elapsed = time.time() - start_time
     success_count = sum(1 for p in updated_profiles if p.get("status") == "success")
 
     print("\nBulk update complete!")
     print(f"  Total time: {elapsed:.1f}s")
-    print(f"  Success: {success_count}/{len(updated_profiles)} "
-          f"({success_count / len(updated_profiles) * 100:.1f}%)")
+    print(f"  Success: {success_count}/{len(updated_profiles)} ({success_count / len(updated_profiles) * 100:.1f}%)")
 
     return pd.DataFrame(updated_profiles)

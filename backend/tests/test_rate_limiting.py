@@ -2,8 +2,11 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import limiter
+from src.models.farm import Farm
+from src.models.user import User
 
 pytestmark = pytest.mark.asyncio
 
@@ -45,7 +48,13 @@ async def test_slowapi_limiter_on_register(async_client: AsyncClient, admin_auth
     assert response.status_code == 429
 
 
-async def test_slowapi_limiter_on_recommendations(async_client: AsyncClient, admin_auth_headers: dict):
+async def test_slowapi_limiter_on_recommendations(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
     """
     Testing rate limiting on recommendations endpoint.
     Verifies that:
@@ -53,9 +62,30 @@ async def test_slowapi_limiter_on_recommendations(async_client: AsyncClient, adm
     - The last response returns 429
     - Indicating that the rate limit has been hit and the user has been restricted.
     """
+    farm = Farm(
+        rainfall_mm=1500,
+        temperature_celsius=22,
+        elevation_m=500,
+        ph=6.5,
+        soil_texture_id=1,
+        area_ha=5.0,
+        latitude=-8.5,
+        longitude=126.5,
+        coastal=False,
+        riparian=False,
+        nitrogen_fixing=False,
+        shade_tolerant=False,
+        bank_stabilising=False,
+        slope=10.5,
+        user_id=test_admin_user.id,
+    )
+    async_session.add(farm)
+    await async_session.flush()
+    await async_session.refresh(farm)
+
     limiter.reset()
-    response = await async_client.get("/recommendations/1", headers=admin_auth_headers)
+    response = await async_client.get(f"/recommendations/{farm.id}", headers=admin_auth_headers)
     assert response.status_code == 200
     for i in range(0, 11):
-        response = await async_client.get("/recommendations/1", headers=admin_auth_headers)
+        response = await async_client.get(f"/recommendations/{farm.id}", headers=admin_auth_headers)
     assert response.status_code == 429

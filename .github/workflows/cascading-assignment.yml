@@ -113,16 +113,11 @@ jobs:
             query($id: ID!) {
               node(id: $id) {
                 ... on Issue {
-                  issueRelationships(first: 20) {
+                  blockedBy(first: 20) {
                     nodes {
-                      type
-                      subject {
-                        ... on Issue {
-                          number
-                          title
-                          state
-                        }
-                      }
+                      number
+                      title
+                      state
                     }
                   }
                 }
@@ -131,10 +126,9 @@ jobs:
 
           # Extract open issues that are directly blocking this one
           OPEN_BLOCKERS=$(echo "$BLOCKERS" | jq -r '
-            .data.node.issueRelationships.nodes[]
-            | select(.type == "BLOCKED_BY")
-            | select(.subject.state == "OPEN")
-            | "#\(.subject.number) \(.subject.title)"
+            .data.node.blockedBy.nodes[]
+            | select(.state == "OPEN")
+            | "#\(.number) \(.title)"
           ')
 
           # Also check project board status for those blocker issues

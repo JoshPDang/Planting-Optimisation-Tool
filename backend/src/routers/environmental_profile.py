@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_session
+from src.dependencies import limiter, require_role
 from src.schemas.environmental_profile import FarmProfileResponse
 from src.schemas.user import Role, UserRead
-from src.services.authentication import require_role
-from src.services.environmental_profile import EnvironmentalProfileService
+from src.services import environmental_profile as environmental_profile_service
+from src.services import farm as farm_service
 
 router = APIRouter(prefix="/profile", tags=["Environmental Profile"])
 
@@ -15,7 +16,9 @@ router = APIRouter(prefix="/profile", tags=["Environmental Profile"])
     response_model=FarmProfileResponse,
     response_model_exclude_none=True,
 )
+@limiter.limit("10/minute")
 async def get_farm_profile(
+    request: Request,
     farm_id: int,
     db: AsyncSession = Depends(get_db_session),
     current_user: UserRead = Depends(require_role(Role.OFFICER)),
@@ -29,7 +32,16 @@ async def get_farm_profile(
     Fetches environmental data from Google Earth Engine for a farm.
     Requires OFFICER role or higher.
     """
-    service = EnvironmentalProfileService()
+    if current_user.role == Role.OFFICER:
+        user_id_filter = current_user.id
+    else:
+        user_id_filter = None
+
+    farms = await farm_service.get_farm_by_id(db, [farm_id], user_id=user_id_filter)
+    if not farms:
+        raise HTTPException(status_code=404, detail=f"Farm with ID {farm_id} not found.")
+
+    service = environmental_profile_service.EnvironmentalProfileService()
     profile_data = await service.run_environmental_profile(db, farm_id)
 
     if not profile_data:

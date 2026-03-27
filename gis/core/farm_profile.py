@@ -36,7 +36,6 @@ def build_farm_profile(
     geometry,
     year: Optional[int] = None,
     farm_id: Optional[int] = None,
-    riparian_buffer_m: Optional[float] = None,
     **additional_fields,
 ) -> Dict[str, Any]:
     """
@@ -50,13 +49,11 @@ def build_farm_profile(
         geometry:          Farm geometry (point, polygon, or coordinates).
         year:              Year for temporal data extraction (default: 2024).
         farm_id:           Unique farm identifier (None for new/candidate farms).
-        riparian_buffer_m: Override riparian buffer distance in metres.
-                           Defaults to settings.RIPARIAN_BUFFER_M (30m).
         **additional_fields: Any additional custom fields (e.g., farmer_name).
 
     Returns:
         Dictionary with complete farm profile including:
-            - is_riparian (bool | None)
+            - riparian (bool | None)
             - distance_to_nearest_waterway_m (float | None)
 
     Example:
@@ -80,7 +77,7 @@ def build_farm_profile(
         lat, lon = get_centroid_lat_lon(geometry)
 
         # --- US-018: Riparian zone (local vector, not GEE) ---
-        riparian = get_riparian_flags(geometry, buffer_m=riparian_buffer_m)
+        riparian = get_riparian_flags(geometry)
 
         # --- Derived flags ---
         if elevation is not None and rainfall is not None:
@@ -103,7 +100,7 @@ def build_farm_profile(
             "longitude": lon,
             "coastal": coastal_flag,
             # US-018 fields
-            "is_riparian": riparian["is_riparian"],
+            "riparian": riparian["is_riparian"],
             "distance_to_nearest_waterway_m": riparian["distance_to_nearest_waterway_m"],
             "updated_at": datetime.now().isoformat(),
             "status": "success",
@@ -113,13 +110,9 @@ def build_farm_profile(
         return profile
 
     except Exception as e:
-        return {
-            "id": farm_id,
-            "year": year,
-            "status": "failed",
-            "error": str(e),
-            "updated_at": datetime.now().isoformat(),
-        }
+        raise RuntimeError(
+            f"Failed to build farm profile for farm_id={farm_id}: {e}"
+        ) from e
 
 
 def update_farm_profile(
@@ -127,7 +120,6 @@ def update_farm_profile(
     geometry,
     fields: Optional[List[str]] = None,
     year: Optional[int] = None,
-    riparian_buffer_m: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Update specific fields in an existing farm profile.
@@ -137,7 +129,6 @@ def update_farm_profile(
         geometry:          Farm geometry.
         fields:            List of fields to update (None = update all fields).
         year:              Year for temporal data.
-        riparian_buffer_m: Override riparian buffer distance in metres.
 
     Returns:
         Updated profile dictionary.
@@ -146,23 +137,25 @@ def update_farm_profile(
         updated = update_farm_profile(
             existing_profile=old_profile,
             geometry=farm_geometry,
-            fields=["rainfall_mm", "is_riparian", "distance_to_nearest_waterway_m"],
+            fields=["rainfall_mm", "riparian", "distance_to_nearest_waterway_m"],
         )
     """
     year = year or existing_profile.get("year", 2024)
     farm_id = existing_profile.get("id")
 
     if fields is None:
-        return build_farm_profile(geometry, year, farm_id, riparian_buffer_m)
+        return build_farm_profile(geometry, year, farm_id)
 
-    # Field extraction functions — riparian fields share a single call to avoid
-    # loading/querying the waterways dataset twice when both fields are requested.
-    _riparian_cache: Dict = {}
+    # Riparian is computed at creation and can be explicitly re-triggered on update
+    # (e.g. if the waterways dataset is refreshed or a farm boundary is corrected).
+    # Both fields share a single get_riparian_flags() call via the _riparian closure
+    # to avoid loading/querying the waterways dataset twice in one update.
+    _riparian: Dict = {}
 
-    def _get_riparian_cached(key: str):
-        if not _riparian_cache:
-            _riparian_cache.update(get_riparian_flags(geometry, buffer_m=riparian_buffer_m))
-        return _riparian_cache.get(key)
+    def _get_riparian(key: str):
+        if not _riparian:
+            _riparian.update(get_riparian_flags(geometry))
+        return _riparian.get(key)
 
     field_extractors = {
         "rainfall_mm": lambda: get_rainfall(geometry, year=year),
@@ -172,9 +165,8 @@ def update_farm_profile(
         "slope_degrees": lambda: get_slope(geometry, year=year),
         "area_ha": lambda: get_area_ha(geometry),
         "soil_texture_id": lambda: get_texture_id(geometry),
-        # US-018
-        "is_riparian": lambda: _get_riparian_cached("is_riparian"),
-        "distance_to_nearest_waterway_m": lambda: _get_riparian_cached("distance_to_nearest_waterway_m"),
+        "riparian": lambda: _get_riparian("is_riparian"),
+        "distance_to_nearest_waterway_m": lambda: _get_riparian("distance_to_nearest_waterway_m"),
     }
 
     updated_profile = existing_profile.copy()
@@ -184,7 +176,10 @@ def update_farm_profile(
             if field in field_extractors:
                 updated_profile[field] = field_extractors[field]()
             elif field == "coastal":
-                updated_profile["coastal"] = updated_profile.get("elevation_m", 1000) < 100 and 500 <= updated_profile.get("rainfall_mm", 0) <= 3000
+                updated_profile["coastal"] = (
+                    updated_profile.get("elevation_m", 1000) < 100
+                    and 500 <= updated_profile.get("rainfall_mm", 0) <= 3000
+                )
             elif field in ["latitude", "longitude"]:
                 lat, lon = get_centroid_lat_lon(geometry)
                 updated_profile["latitude"] = lat
@@ -197,9 +192,9 @@ def update_farm_profile(
         return updated_profile
 
     except Exception as e:
-        updated_profile["status"] = "partial_update"
-        updated_profile["error"] = str(e)
-        return updated_profile
+        raise RuntimeError(
+            f"Failed to update farm profile for farm_id={updated_profile.get('id')}: {e}"
+        ) from e
 
 
 # ============================================================================
@@ -212,46 +207,29 @@ def bulk_create_profiles(
     geometry_field: str = "geometry",
     id_field: str = "farm_id",
     year: Optional[int] = None,
-    riparian_buffer_m: Optional[float] = None,
     max_workers: int = 5,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> pd.DataFrame:
     """
     Create profiles for multiple farms in parallel.
 
-    The waterways dataset is loaded and indexed once before the thread pool
-    starts, so all workers share the cached GeoDataFrame rather than each
-    triggering an independent file read.
+    GEE is initialised before calling this function (via init_gee()).
+    Each farm's riparian check makes a GEE call — ensure GEE credentials
+    are available in the environment.
 
     Args:
         farms:             List of farm dicts containing geometry and ID.
         geometry_field:    Field name containing geometry (default: "geometry").
         id_field:          Field name containing farm ID (default: "farm_id").
         year:              Year for data extraction (default: 2024).
-        riparian_buffer_m: Override riparian buffer distance in metres.
         max_workers:       Maximum parallel workers (default: 5).
         progress_callback: Optional callback(current, total).
 
     Returns:
-        DataFrame with all farm profiles including is_riparian and
+        DataFrame with all farm profiles including riparian and
         distance_to_nearest_waterway_m columns.
     """
     year = year or 2024
-
-    # Warm up the waterways cache before entering the thread pool.
-    # This ensures the file is read and indexed exactly once, not once per thread.
-    try:
-        from core.riparian import _load_waterways
-
-        _load_waterways()
-    except FileNotFoundError as e:
-        import warnings
-
-        warnings.warn(
-            f"Waterways dataset unavailable — is_riparian will be None for all farms.\n{e}",
-            stacklevel=2,
-        )
-
     profiles = []
     total = len(farms)
 
@@ -265,16 +243,21 @@ def bulk_create_profiles(
                 farm[geometry_field],
                 year,
                 farm.get(id_field),
-                riparian_buffer_m,
                 **{k: v for k, v in farm.items() if k not in [geometry_field, id_field]},
             ): farm
             for farm in farms
         }
 
         completed = 0
+        failed = 0
         for future in as_completed(future_to_farm):
-            profile = future.result()
-            profiles.append(profile)
+            try:
+                profile = future.result()
+                profiles.append(profile)
+            except Exception as e:
+                failed += 1
+                farm = future_to_farm[future]
+                print(f"  ERROR farm_id={farm.get(id_field)}: {e}")
             completed += 1
 
             if progress_callback:
@@ -284,16 +267,20 @@ def bulk_create_profiles(
                 elapsed = time.time() - start_time
                 rate = completed / elapsed
                 remaining = (total - completed) / rate if rate > 0 else 0
-                print(f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s")
+                print(
+                    f"  Progress: {completed}/{total} "
+                    f"({completed / total * 100:.1f}%) - "
+                    f"{rate:.1f} farms/sec - ETA: {remaining:.0f}s"
+                )
 
     elapsed = time.time() - start_time
-    success_count = sum(1 for p in profiles if p.get("status") == "success")
+    success_count = len(profiles)
 
     print("\nBulk creation complete!")
     print(f"  Total time: {elapsed:.1f}s")
     print(f"  Rate: {total / elapsed:.1f} farms/sec")
     print(f"  Success: {success_count}/{total} ({success_count / total * 100:.1f}%)")
-    print(f"  Failed: {total - success_count}")
+    print(f"  Failed: {failed}")
 
     return pd.DataFrame(profiles)
 
@@ -303,7 +290,6 @@ def bulk_update_profiles(
     geometries: Dict[int, Any],
     fields: Optional[List[str]] = None,
     year: Optional[int] = None,
-    riparian_buffer_m: Optional[float] = None,
     max_workers: int = 5,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> pd.DataFrame:
@@ -315,7 +301,6 @@ def bulk_update_profiles(
         geometries:        Dictionary mapping farm_id to geometry.
         fields:            List of fields to update (None = all fields).
         year:              Year for data extraction (default: 2024).
-        riparian_buffer_m: Override riparian buffer distance in metres.
         max_workers:       Maximum parallel workers (default: 5).
         progress_callback: Optional callback(current, total).
 
@@ -327,21 +312,10 @@ def bulk_update_profiles(
         updated_df = bulk_update_profiles(
             profiles_df=old_profiles,
             geometries=geometries,
-            fields=["is_riparian", "distance_to_nearest_waterway_m"],
+            fields=["riparian", "distance_to_nearest_waterway_m"],
         )
     """
     year = year or 2024
-
-    # Warm up waterways cache before thread pool (same reason as bulk_create)
-    if fields is None or any(f in (fields or []) for f in ["is_riparian", "distance_to_nearest_waterway_m"]):
-        try:
-            from core.riparian import _load_waterways
-
-            _load_waterways()
-        except FileNotFoundError as e:
-            import warnings
-
-            warnings.warn(str(e), stacklevel=2)
 
     updated_profiles = []
     total = len(profiles_df)
@@ -361,14 +335,19 @@ def bulk_update_profiles(
                     geometries[farm_id],
                     fields,
                     year,
-                    riparian_buffer_m,
                 )
                 future_to_id[future] = farm_id
 
         completed = 0
+        failed = 0
         for future in as_completed(future_to_id):
-            profile = future.result()
-            updated_profiles.append(profile)
+            try:
+                profile = future.result()
+                updated_profiles.append(profile)
+            except Exception as e:
+                failed += 1
+                farm_id = future_to_id[future]
+                print(f"  ERROR farm_id={farm_id}: {e}")
             completed += 1
 
             if progress_callback:
@@ -378,13 +357,18 @@ def bulk_update_profiles(
                 elapsed = time.time() - start_time
                 rate = completed / elapsed
                 remaining = (total - completed) / rate if rate > 0 else 0
-                print(f"  Progress: {completed}/{total} ({completed / total * 100:.1f}%) - {rate:.1f} farms/sec - ETA: {remaining:.0f}s")
+                print(
+                    f"  Progress: {completed}/{total} "
+                    f"({completed / total * 100:.1f}%) - "
+                    f"{rate:.1f} farms/sec - ETA: {remaining:.0f}s"
+                )
 
     elapsed = time.time() - start_time
-    success_count = sum(1 for p in updated_profiles if p.get("status") == "success")
+    success_count = len(updated_profiles)
 
     print("\nBulk update complete!")
     print(f"  Total time: {elapsed:.1f}s")
-    print(f"  Success: {success_count}/{len(updated_profiles)} ({success_count / len(updated_profiles) * 100:.1f}%)")
+    print(f"  Success: {success_count}/{completed} "
+          f"({success_count / completed * 100:.1f}% )" if completed else "")
 
     return pd.DataFrame(updated_profiles)

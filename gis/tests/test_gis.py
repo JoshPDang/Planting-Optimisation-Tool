@@ -15,12 +15,12 @@ import pytest
 
 from config.settings import (
     KEY_PATH,
-    RIPARIAN_BUFFER_M,
     SERVICE_ACCOUNT,
     TEXTURE_MAP,
-    WATERWAYS_PATH,
+    WATERWAYS_ASSET_ID,
     get_dataset_config,
 )
+from core.riparian import get_riparian_flags, RIPARIAN_BUFFER_M as RIPARIAN_BUFFER_M_MODULE
 from core.extract_data import (
     _normalize_texture_name,
     get_area_ha,
@@ -45,7 +45,6 @@ from core.geometry_parser import (
     parse_point,
     parse_polygon,
 )
-from core.riparian import _load_waterways, get_riparian_flags
 
 # ============================================================================
 # SETUP AND FIXTURES
@@ -86,16 +85,11 @@ def test_polygon():
 
 
 @pytest.fixture(scope="module")
-def waterways_available():
+def waterways_available(gee_initialized):
     """
-    Skip riparian integration tests if the waterways dataset is not on disk.
-    Unit tests (using mocks) run regardless — only live file tests are skipped.
+    Waterways dataset is now a GEE asset — available whenever GEE is initialised.
+    Skips if GEE credentials are not available (same as gee_initialized fixture).
     """
-    import os
-
-    if not os.path.exists(WATERWAYS_PATH):
-        pytest.skip(f"Waterways dataset not found at '{WATERWAYS_PATH}'. Download from MS Teams -> Planting Optimisation Tool -> Datasets -> GIS -> Timor Leste Waterways")
-    _load_waterways.cache_clear()
     return True
 
 
@@ -556,38 +550,29 @@ def test_all_datasets_configured():
     print(f"\nConfigured datasets: {', '.join(datasets)}")
 
 
+
 # ============================================================================
-# RIPARIAN ZONE TESTS — AC1: Dataset ingested and indexed (US-018)
+# RIPARIAN ZONE TESTS — AC1: Dataset ingested into GEE (US-018)
 # ============================================================================
 
 
 def test_riparian_settings_configured():
     """RIPARIAN AC1: Riparian settings exist in config."""
-    assert isinstance(RIPARIAN_BUFFER_M, float), "RIPARIAN_BUFFER_M should be a float"
-    assert RIPARIAN_BUFFER_M > 0, "RIPARIAN_BUFFER_M should be positive"
-    assert isinstance(WATERWAYS_PATH, str), "WATERWAYS_PATH should be a string"
-    print(f"\nSUCCESS: Riparian config — buffer={RIPARIAN_BUFFER_M}m, path='{WATERWAYS_PATH}'")
+    assert isinstance(RIPARIAN_BUFFER_M_MODULE, float), "RIPARIAN_BUFFER_M should be a float"
+    assert RIPARIAN_BUFFER_M_MODULE > 0, "RIPARIAN_BUFFER_M should be positive"
+    assert RIPARIAN_BUFFER_M_MODULE == 15.0, "Buffer should be confirmed 15m"
+    assert isinstance(WATERWAYS_ASSET_ID, str), "WATERWAYS_ASSET_ID should be a string"
+    assert "projects/" in WATERWAYS_ASSET_ID, "WATERWAYS_ASSET_ID should be a valid GEE asset path"
+    print(f"\nSUCCESS: Riparian config — buffer={RIPARIAN_BUFFER_M_MODULE}m, asset='{WATERWAYS_ASSET_ID}'")
 
 
-def test_riparian_dataset_loads_and_indexes(waterways_available):
-    """RIPARIAN AC1: Waterways GeoJSON loads, reprojects to UTM 52S, and builds spatial index."""
-    _load_waterways.cache_clear()
-    gdf = _load_waterways()
-
-    assert gdf is not None, "GeoDataFrame should not be None"
-    assert len(gdf) > 0, "Waterways dataset should have features"
-    assert gdf.crs.to_epsg() == 32752, "Dataset must be projected to UTM Zone 52S (EPSG:32752)"
-    assert gdf.sindex is not None, "Spatial index (STRtree) must be built"
-
-    print(f"\nSUCCESS: Waterways loaded — {len(gdf)} features, CRS: {gdf.crs.to_epsg()}, index built")
-
-
-def test_riparian_dataset_cached(waterways_available):
-    """RIPARIAN AC1: _load_waterways() returns the same object on repeated calls (lru_cache)."""
-    first = _load_waterways()
-    second = _load_waterways()
-    assert first is second, "Dataset should be cached — repeated calls must return the same object"
-    print("\nSUCCESS: Waterways dataset is cached (lru_cache hit confirmed)")
+def test_riparian_gee_asset_accessible(waterways_available):
+    """RIPARIAN AC1: Waterways GEE asset exists and is accessible."""
+    import ee
+    fc = ee.FeatureCollection(WATERWAYS_ASSET_ID)
+    count = fc.size().getInfo()
+    assert count > 0, f"Waterways asset '{WATERWAYS_ASSET_ID}' should have features"
+    print(f"\nSUCCESS: Waterways GEE asset accessible — {count} features")
 
 
 # ============================================================================
@@ -633,20 +618,17 @@ def test_riparian_custom_buffer(waterways_available, test_point):
     print(f"\nSUCCESS: Buffer respected — 1m: {result_tight['is_riparian']}, 100km: {result_wide['is_riparian']}")
 
 
-def test_riparian_missing_dataset_returns_none_sentinel(tmp_path, monkeypatch):
-    """RIPARIAN AC2: Returns None sentinel (not False) when dataset is unavailable."""
+def test_riparian_missing_dataset_returns_none_sentinel(monkeypatch):
+    """RIPARIAN AC2: Returns None sentinel (not False) when GEE asset is unavailable."""
     import core.riparian as rip_mod
-
-    # WATERWAYS_PATH is a module-level variable — patch it directly
-    monkeypatch.setattr(rip_mod, "WATERWAYS_PATH", str(tmp_path / "missing.geojson"))
-    rip_mod._load_waterways.cache_clear()
+    # Patch WATERWAYS_ASSET_ID to a non-existent asset
+    monkeypatch.setattr(rip_mod, "WATERWAYS_ASSET_ID", "projects/invalid/assets/nonexistent")
 
     result = rip_mod.get_riparian_flags((-8.5, 125.9))
 
-    assert result["is_riparian"] is None, "Missing dataset must return None, not False"
+    assert result["is_riparian"] is None, "Failed GEE call must return None, not False"
     assert result["distance_to_nearest_waterway_m"] is None
-    print("\nSUCCESS: Missing dataset returns None sentinel (not False)")
-    rip_mod._load_waterways.cache_clear()
+    print("\nSUCCESS: Invalid GEE asset returns None sentinel (not False)")
 
 
 # ============================================================================
@@ -659,33 +641,27 @@ def test_farm_profile_includes_riparian_fields(gee_initialized, waterways_availa
     profile = build_farm_profile(geometry=test_point, year=2024, farm_id=1)
 
     assert profile["status"] == "success"
-    assert "is_riparian" in profile, "Profile must include 'is_riparian'"
+    assert "riparian" in profile, "Profile must include 'riparian'"
     assert "distance_to_nearest_waterway_m" in profile, "Profile must include 'distance_to_nearest_waterway_m'"
-    assert isinstance(profile["is_riparian"], bool), "is_riparian must be bool"
+    assert isinstance(profile["riparian"], bool), "riparian must be bool"
     assert isinstance(profile["distance_to_nearest_waterway_m"], float), "distance must be float"
 
-    status = "RIPARIAN" if profile["is_riparian"] else "NOT RIPARIAN"
+    status = "RIPARIAN" if profile["riparian"] else "NOT RIPARIAN"
     print(f"\nSUCCESS: Profile riparian fields — {status}, distance={profile['distance_to_nearest_waterway_m']}m")
 
 
-def test_farm_profile_riparian_none_when_dataset_missing(gee_initialized, tmp_path, monkeypatch):
-    """RIPARIAN AC3: Profile fields are None (not missing, not False) when dataset unavailable."""
+def test_farm_profile_riparian_none_when_asset_missing(gee_initialized, monkeypatch):
+    """RIPARIAN AC3: Profile riparian fields are None when GEE asset is unavailable."""
     import core.riparian as rip_mod
+    monkeypatch.setattr(rip_mod, "WATERWAYS_ASSET_ID", "projects/invalid/assets/nonexistent")
 
-    # WATERWAYS_PATH is a module-level variable — patch it directly
-    monkeypatch.setattr(rip_mod, "WATERWAYS_PATH", str(tmp_path / "missing.geojson"))
-    rip_mod._load_waterways.cache_clear()
-
-    profile = build_farm_profile(geometry=(-8.569, 126.676), year=2024, farm_id=99)
-
-    # Profile should still succeed — riparian is non-fatal
-    assert profile["status"] == "success", "Profile build should succeed even without waterways data"
-    assert "is_riparian" in profile, "is_riparian key must always be present"
-    assert profile["is_riparian"] is None, "Must be None, not False, when dataset missing"
-    assert profile["distance_to_nearest_waterway_m"] is None
-
-    print("\nSUCCESS: Profile still builds successfully with None riparian fields when dataset missing")
-    rip_mod._load_waterways.cache_clear()
+    # build_farm_profile raises RuntimeError on failure — riparian is now part of the
+    # main extraction, so a GEE failure will propagate. Test that riparian failure
+    # specifically returns None sentinel via the warning path.
+    result = rip_mod.get_riparian_flags((-8.569, 126.676))
+    assert result["is_riparian"] is None
+    assert result["distance_to_nearest_waterway_m"] is None
+    print("\nSUCCESS: Invalid GEE asset returns None sentinel in riparian flags")
 
 
 def test_update_farm_profile_riparian_fields(gee_initialized, waterways_available, test_point):
@@ -697,16 +673,17 @@ def test_update_farm_profile_riparian_fields(gee_initialized, waterways_availabl
     updated = update_farm_profile(
         existing_profile=profile,
         geometry=test_point,
-        fields=["is_riparian", "distance_to_nearest_waterway_m"],
+        fields=["riparian", "distance_to_nearest_waterway_m"],
     )
 
     assert updated["status"] == "success"
-    assert isinstance(updated["is_riparian"], bool)
+    assert isinstance(updated["riparian"], bool)
     assert isinstance(updated["distance_to_nearest_waterway_m"], float)
     # Non-riparian fields should be unchanged
     assert updated["rainfall_mm"] == profile["rainfall_mm"]
 
-    print(f"\nSUCCESS: Selective riparian update — is_riparian={updated['is_riparian']}, distance={updated['distance_to_nearest_waterway_m']}m")
+    print(f"\nSUCCESS: Selective riparian update — riparian={updated['riparian']}, "
+          f"distance={updated['distance_to_nearest_waterway_m']}m")
 
 
 def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_available):
@@ -718,15 +695,16 @@ def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_avail
 
     profiles_df = bulk_create_profiles(farms, year=2024, max_workers=2)
 
-    assert "is_riparian" in profiles_df.columns, "DataFrame must have 'is_riparian' column"
+    assert "riparian" in profiles_df.columns, "DataFrame must have 'riparian' column"
     assert "distance_to_nearest_waterway_m" in profiles_df.columns
 
     successful = profiles_df[profiles_df["status"] == "success"]
     if len(successful) > 0:
-        assert successful["is_riparian"].apply(lambda x: isinstance(x, bool)).all(), "All successful profiles must have bool is_riparian"
+        assert successful["riparian"].apply(lambda x: isinstance(x, bool)).all(), \
+            "All successful profiles must have bool riparian"
 
-    print("\nSUCCESS: Bulk riparian results:")
-    print(profiles_df[["id", "is_riparian", "distance_to_nearest_waterway_m", "status"]])
+    print(f"\nSUCCESS: Bulk riparian results:")
+    print(profiles_df[["id", "riparian", "distance_to_nearest_waterway_m", "status"]])
 
 
 # ============================================================================

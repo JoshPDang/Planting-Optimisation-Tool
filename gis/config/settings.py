@@ -28,19 +28,15 @@ KEY_PATH = os.getenv("GEE_KEY_PATH")
 # RIPARIAN ZONE CONFIGURATION (US-018)
 # ============================================================================
 
-# Buffer distance in metres that defines a "riparian zone".
-# Default: 30m — aligns with FAO/IFC Performance Standards general guidance.
-# NOTE: Confirm with environmental consultant before production use.
-# Override via environment variable to avoid code changes when confirmed.
-RIPARIAN_BUFFER_M: float = float(os.getenv("RIPARIAN_BUFFER_M", 30))
-
-# Path to the Timor-Leste waterways lines GeoJSON file.
-# Download: hotosm_tls_waterways_lines_geojson.zip from
-#   MS Teams → Planting Optimisation Tool → Datasets → GIS → Timor Leste Waterways
-# Unzip and place the .geojson at this path, or override via env var.
-WATERWAYS_PATH: str = os.getenv(
-    "WATERWAYS_PATH",
-    "../assets/hotosm_tls_waterways_lines.geojson",
+# GEE asset ID for the Timor-Leste waterways FeatureCollection.
+# Upload once using the earthengine CLI:
+#   earthengine upload table \
+#       --asset_id=projects/<your-project>/assets/tls_waterways_lines \
+#       assets/hotosm_tls_waterways_lines_gpkg.gpkg
+# Then set WATERWAYS_ASSET_ID in .env to match.
+WATERWAYS_ASSET_ID: str = os.getenv(
+    "WATERWAYS_ASSET_ID",
+    "projects/your-project/assets/tls_waterways_lines",
 )
 
 

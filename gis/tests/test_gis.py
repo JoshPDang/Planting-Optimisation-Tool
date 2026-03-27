@@ -20,7 +20,6 @@ from config.settings import (
     WATERWAYS_ASSET_ID,
     get_dataset_config,
 )
-from core.riparian import get_riparian_flags, RIPARIAN_BUFFER_M as RIPARIAN_BUFFER_M_MODULE
 from core.extract_data import (
     _normalize_texture_name,
     get_area_ha,
@@ -45,6 +44,8 @@ from core.geometry_parser import (
     parse_point,
     parse_polygon,
 )
+from core.riparian import RIPARIAN_BUFFER_M as RIPARIAN_BUFFER_M_MODULE
+from core.riparian import get_riparian_flags
 
 # ============================================================================
 # SETUP AND FIXTURES
@@ -550,7 +551,6 @@ def test_all_datasets_configured():
     print(f"\nConfigured datasets: {', '.join(datasets)}")
 
 
-
 # ============================================================================
 # RIPARIAN ZONE TESTS — AC1: Dataset ingested into GEE (US-018)
 # ============================================================================
@@ -569,6 +569,7 @@ def test_riparian_settings_configured():
 def test_riparian_gee_asset_accessible(waterways_available):
     """RIPARIAN AC1: Waterways GEE asset exists and is accessible."""
     import ee
+
     fc = ee.FeatureCollection(WATERWAYS_ASSET_ID)
     count = fc.size().getInfo()
     assert count > 0, f"Waterways asset '{WATERWAYS_ASSET_ID}' should have features"
@@ -621,6 +622,7 @@ def test_riparian_custom_buffer(waterways_available, test_point):
 def test_riparian_missing_dataset_returns_none_sentinel(monkeypatch):
     """RIPARIAN AC2: Returns None sentinel (not False) when GEE asset is unavailable."""
     import core.riparian as rip_mod
+
     # Patch WATERWAYS_ASSET_ID to a non-existent asset
     monkeypatch.setattr(rip_mod, "WATERWAYS_ASSET_ID", "projects/invalid/assets/nonexistent")
 
@@ -653,6 +655,7 @@ def test_farm_profile_includes_riparian_fields(gee_initialized, waterways_availa
 def test_farm_profile_riparian_none_when_asset_missing(gee_initialized, monkeypatch):
     """RIPARIAN AC3: Profile riparian fields are None when GEE asset is unavailable."""
     import core.riparian as rip_mod
+
     monkeypatch.setattr(rip_mod, "WATERWAYS_ASSET_ID", "projects/invalid/assets/nonexistent")
 
     # build_farm_profile raises RuntimeError on failure — riparian is now part of the
@@ -682,8 +685,7 @@ def test_update_farm_profile_riparian_fields(gee_initialized, waterways_availabl
     # Non-riparian fields should be unchanged
     assert updated["rainfall_mm"] == profile["rainfall_mm"]
 
-    print(f"\nSUCCESS: Selective riparian update — riparian={updated['riparian']}, "
-          f"distance={updated['distance_to_nearest_waterway_m']}m")
+    print(f"\nSUCCESS: Selective riparian update — riparian={updated['riparian']}, distance={updated['distance_to_nearest_waterway_m']}m")
 
 
 def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_available):
@@ -700,10 +702,9 @@ def test_bulk_create_profiles_includes_riparian(gee_initialized, waterways_avail
 
     successful = profiles_df[profiles_df["status"] == "success"]
     if len(successful) > 0:
-        assert successful["riparian"].apply(lambda x: isinstance(x, bool)).all(), \
-            "All successful profiles must have bool riparian"
+        assert successful["riparian"].apply(lambda x: isinstance(x, bool)).all(), "All successful profiles must have bool riparian"
 
-    print(f"\nSUCCESS: Bulk riparian results:")
+    print("\nSUCCESS: Bulk riparian results:")
     print(profiles_df[["id", "riparian", "distance_to_nearest_waterway_m", "status"]])
 
 

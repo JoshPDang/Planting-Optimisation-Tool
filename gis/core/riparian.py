@@ -81,11 +81,7 @@ def get_riparian_flags(
             dist = farm_geom.distance(feature.geometry(), maxError=1)
             return feature.set("distance_m", dist)
 
-        nearest_distance = (
-            waterways
-            .map(add_distance)
-            .aggregate_min("distance_m")
-        )
+        nearest_distance = waterways.map(add_distance).aggregate_min("distance_m")
 
         distance_m = float(nearest_distance.getInfo())
         is_riparian = distance_m <= buffer_m
@@ -97,9 +93,9 @@ def get_riparian_flags(
 
     except Exception as e:
         import warnings
+
         warnings.warn(
-            f"Riparian check via GEE failed: {e}. "
-            f"Verify asset exists: {WATERWAYS_ASSET_ID}",
+            f"Riparian check via GEE failed: {e}. Verify asset exists: {WATERWAYS_ASSET_ID}",
             stacklevel=2,
         )
         return {
